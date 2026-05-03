@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import GuidedLearning from './components/GuidedLearning';
-import Quiz from './components/Quiz';
-import Flashcards from './components/Flashcards';
-import ChatAssistant from './components/ChatAssistant';
-import MyVotingGuide from './components/MyVotingGuide';
-import UserProfile from './components/UserProfile';
-import Progress from './components/Progress';
-import Updates from './components/Updates';
 import { ProgressProvider } from './context/ProgressContext';
+
+// Lazy load components for better efficiency
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const GuidedLearning = lazy(() => import('./components/GuidedLearning'));
+const Quiz = lazy(() => import('./components/Quiz'));
+const Flashcards = lazy(() => import('./components/Flashcards'));
+const ChatAssistant = lazy(() => import('./components/ChatAssistant'));
+const MyVotingGuide = lazy(() => import('./components/MyVotingGuide'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
+const Progress = lazy(() => import('./components/Progress'));
+const Updates = lazy(() => import('./components/Updates'));
+
+// Loading fallback component
+const LoadingSpinner = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+    <div className="pulse" style={{ color: 'var(--primary-color)', fontSize: '1.2rem', fontWeight: 'bold' }}>
+      Loading Module...
+    </div>
+  </div>
+);
 
 function App() {
   const [mode, setMode] = useState('menu'); // 'menu', 'learn', 'quiz', 'flashcards', 'chat', 'guide', 'profile', 'progress'
@@ -18,41 +29,43 @@ function App() {
   return (
     <ProgressProvider>
       <Layout setMode={setMode} activeMode={mode}>
-        {mode === 'menu' && (
-          <Dashboard setMode={setMode} setModuleId={setModuleId} />
-        )}
-        
-        {mode === 'learn' && (
-          <GuidedLearning setMode={setMode} moduleId={moduleId || 'basics'} />
-        )}
+        <Suspense fallback={<LoadingSpinner />}>
+          {mode === 'menu' && (
+            <Dashboard setMode={setMode} setModuleId={setModuleId} />
+          )}
+          
+          {mode === 'learn' && (
+            <GuidedLearning setMode={setMode} moduleId={moduleId || 'basics'} />
+          )}
 
-        {mode === 'quiz' && (
-          <Quiz setMode={setMode} />
-        )}
+          {mode === 'quiz' && (
+            <Quiz setMode={setMode} />
+          )}
 
-        {mode === 'flashcards' && (
-          <Flashcards setMode={setMode} />
-        )}
+          {mode === 'flashcards' && (
+            <Flashcards setMode={setMode} />
+          )}
 
-        {mode === 'chat' && (
-          <ChatAssistant setMode={setMode} />
-        )}
+          {mode === 'chat' && (
+            <ChatAssistant setMode={setMode} />
+          )}
 
-        {mode === 'guide' && (
-          <MyVotingGuide setMode={setMode} />
-        )}
+          {mode === 'guide' && (
+            <MyVotingGuide setMode={setMode} />
+          )}
 
-        {mode === 'profile' && (
-          <UserProfile />
-        )}
+          {mode === 'profile' && (
+            <UserProfile />
+          )}
 
-        {mode === 'progress' && (
-          <Progress setMode={setMode} />
-        )}
+          {mode === 'progress' && (
+            <Progress setMode={setMode} />
+          )}
 
-        {mode === 'updates' && (
-          <Updates setMode={setMode} />
-        )}
+          {mode === 'updates' && (
+            <Updates setMode={setMode} />
+          )}
+        </Suspense>
       </Layout>
     </ProgressProvider>
   );

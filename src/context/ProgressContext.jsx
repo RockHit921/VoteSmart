@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Star, CheckCircle } from 'lucide-react';
+import { db } from '../firebase';
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 
 const ProgressContext = createContext();
 
@@ -15,6 +17,37 @@ export const ProgressProvider = ({ children }) => {
   const [lessonsCompleted, setLessonsCompleted] = useState(0);
   const [dailyChallengeCompleted, setDailyChallengeCompleted] = useState(false);
   const [avatar, setAvatar] = useState('male');
+  const [userId, setUserId] = useState('anonymous_user'); // Simplified for demo
+
+  // Load data from Firebase on mount
+  useEffect(() => {
+    if (!db) return;
+    
+    const userDocRef = doc(db, "users", userId);
+    
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPoints(data.points || 0);
+        setBadges(data.badges || []);
+        setLessonsCompleted(data.lessonsCompleted || 0);
+        setStreak(data.streak || 1);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  // Sync data to Firebase whenever points change
+  const syncToCloud = async (newData) => {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      await setDoc(userDocRef, newData, { merge: true });
+    } catch (error) {
+      console.error("Firebase Sync Error:", error);
+    }
+  };
 
   // Level Logic
   const getLevel = () => {
@@ -26,7 +59,9 @@ export const ProgressProvider = ({ children }) => {
   const level = getLevel();
 
   const addPoints = (amount) => {
-    setPoints(prev => prev + amount);
+    const newPoints = points + amount;
+    setPoints(newPoints);
+    syncToCloud({ points: newPoints });
   };
 
   const logActivity = (text, amount = 0) => {
@@ -36,19 +71,27 @@ export const ProgressProvider = ({ children }) => {
       time: 'Just now',
       icon: <CheckCircle size={16} color="#138808" />
     };
-    setActivities(prev => [newActivity, ...prev].slice(0, 10)); // Keep last 10
+    setActivities(prev => [newActivity, ...prev].slice(0, 10)); // Keep last 10 locally
     if (amount > 0) addPoints(amount);
   };
 
   const addQuizScore = (score) => {
-    setQuizScores(prev => [...prev, score]);
+    const newScores = [...quizScores, score];
+    setQuizScores(newScores);
+    
+    let newBadges = [...badges];
     if (!badges.find(b => b.id === 'quiz')) {
-       setBadges(prev => [...prev, { id: 'quiz', title: 'First Quiz Ace', icon: <Star size={24} color="#FF9933" />, bg: 'rgba(255, 153, 51, 0.1)', date: 'Today' }]);
+       const newBadge = { id: 'quiz', title: 'First Quiz Ace', icon: 'Star', bg: 'rgba(255, 153, 51, 0.1)', date: 'Today' };
+       newBadges.push(newBadge);
+       setBadges(newBadges);
     }
+    syncToCloud({ quizScores: newScores, badges: newBadges });
   };
 
   const incrementLesson = () => {
-    setLessonsCompleted(prev => prev + 1);
+    const newVal = lessonsCompleted + 1;
+    setLessonsCompleted(newVal);
+    syncToCloud({ lessonsCompleted: newVal });
   };
 
   const completeDailyChallenge = (pointsEarned) => {
